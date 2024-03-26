@@ -1,8 +1,10 @@
+
 plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.2.4'
 	id 'io.spring.dependency-management' version '1.1.4'
-	id 'org.asciidoctor.jvm.convert' version '3.3.2' // Asciidoctor 플러그인
+	id 'com.epages.restdocs-api-spec' version '0.18.4'
+	id 'org.hidetake.swagger.generator' version '2.18.2'
 }
 
 group = 'com.example'
@@ -12,12 +14,7 @@ java {
 	sourceCompatibility = '17'
 }
 
-ext {
-	set('snippetsDir', file("build/generated-snippets")) //snippetsDir생성된 조각의 출력 위치를 정의
-}
-
 configurations {
-	asciidoctorExt // Asciidoctor을 확장하는 종속성에 대한 구성을 선언
 	compileOnly {
 		extendsFrom annotationProcessor
 	}
@@ -25,6 +22,20 @@ configurations {
 
 repositories {
 	mavenCentral()
+}
+
+openapi3 { // 페이지 속성 설정
+	setServer("http://localhost:8080")
+	title = "RestDocs와 Swagger API 문서"
+	description = "Spring REST Docs와 SwaggerUI를 결합한 API 명세서"
+	version = "0.0.1"
+	format = "json"
+}
+
+swaggerSources {
+	sample {
+		setInputFile(file("${project.buildDir}/api-spec/openapi3.json"))
+	}
 }
 
 dependencies {
@@ -38,37 +49,36 @@ dependencies {
 	runtimeOnly 'mysql:mysql-connector-java:8.0.30'
 
 	// RestDocs
-	asciidoctorExt 'org.springframework.restdocs:spring-restdocs-asciidoctor'
 	testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc'
+	testImplementation "com.epages:restdocs-api-spec-mockmvc:0.18.4"
+
+	// Swagger UI
+	swaggerUI 'org.webjars:swagger-ui:4.11.1'
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
 }
 
-test {
-	outputs.dir snippetsDir // test작업에 대한 출력이 snippets에 기록 된다는 점을 gradle이 인식하도록 함
+tasks.withType(GenerateSwaggerUI) {
+	dependsOn 'openapi3'
 }
 
-asciidoctor {
-	inputs.dir snippetsDir
-	configurations 'asciidoctorExt'
-	dependsOn test
+// 생성된 SwaggerUI 를 jar 에 포함시키기 위해 build/resources 경로로 복사
+tasks.register('copySwaggerUI', Copy) {
+	dependsOn 'generateSwaggerUISample'
+
+	def generateSwaggerUISampleTask = tasks.named('generateSwaggerUISample', GenerateSwaggerUI).get()
+
+	from("${generateSwaggerUISampleTask.outputDir}")
+	into("${project.buildDir}/resources/main/static/docs")
 }
 
-
-asciidoctor.doFirst { // asciidoctor 시작 전 기존 HTML 파일 지우기
-	delete file('src/main/resources/static/docs')
+// bootJar 실행 전, copySwaggerUI 를 실행하도록 설정
+tasks.named('jar').configure {
+	dependsOn ':copySwaggerUI'
 }
 
-tasks.register('copyDocument', Copy) {
-	dependsOn asciidoctor
-	from file("build/docs/asciidoc")
-	// doFirst 경로와 똑같게 설정 API 문서를 저장
-	into file("src/main/resources/static/docs")
-}
-
-build {
-	// 빌드 시 해당 task를 실행하도록 설정
-	dependsOn copyDocument
+tasks.named('resolveMainClassName').configure {
+	dependsOn ':copySwaggerUI'
 }
