@@ -23,7 +23,8 @@ import static org.springframework.restdocs.payload.PayloadDocumentation.*;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.post;
+import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.get;
 
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -65,7 +66,7 @@ class UserControllerTest {
                                 fieldWithPath("name").type(JsonFieldType.STRING).description("사용자 이름")
                                 // 필드명, 타입, 설명 - 이외에도 있지만 기본적인 항목, 순서 상관 x
                         ),
-                        responseFields( // 사용자가 받아야하는 response 항ㅁ목을 작성
+                        responseFields( // 사용자가 받아야하는 response 항목을 작성
                                 fieldWithPath("code").type(JsonFieldType.STRING).description("응답 코드"),
                                 fieldWithPath("message").type(JsonFieldType.STRING).description("결과 메시지")
                         )));
@@ -74,8 +75,7 @@ class UserControllerTest {
 
     @Test
     void findUser() throws Exception {
-        // pathParameters 사용으로 get을 사용할 시 RestDocumentationRequestBuilders를 사용하것이 좋음
-        mockMvc.perform(RestDocumentationRequestBuilders.get("/user/find/{id}","user"))
+        mockMvc.perform(get("/user/find/{id}","user"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.code").value("200"))
