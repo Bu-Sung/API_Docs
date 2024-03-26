@@ -1,0 +1,74 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.2.4'
+	id 'io.spring.dependency-management' version '1.1.4'
+	id 'org.asciidoctor.jvm.convert' version '3.3.2' // Asciidoctor 플러그인
+}
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	sourceCompatibility = '17'
+}
+
+ext {
+	set('snippetsDir', file("build/generated-snippets")) //snippetsDir생성된 조각의 출력 위치를 정의
+}
+
+configurations {
+	asciidoctorExt // Asciidoctor을 확장하는 종속성에 대한 구성을 선언
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+	// JPA
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	runtimeOnly 'mysql:mysql-connector-java:8.0.30'
+
+	// RestDocs
+	asciidoctorExt 'org.springframework.restdocs:spring-restdocs-asciidoctor'
+	testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+
+test {
+	outputs.dir snippetsDir // test작업에 대한 출력이 snippets에 기록 된다는 점을 gradle이 인식하도록 함
+}
+
+asciidoctor {
+	inputs.dir snippetsDir
+	configurations 'asciidoctorExt'
+	dependsOn test
+}
+
+
+asciidoctor.doFirst { // asciidoctor 시작 전 기존 HTML 파일 지우기
+	delete file('src/main/resources/static/docs')
+}
+
+tasks.register('copyDocument', Copy) {
+	dependsOn asciidoctor
+	from file("build/docs/asciidoc")
+	// doFirst 경로와 똑같게 설정 API 문서를 저장
+	into file("src/main/resources/static/docs")
+}
+
+build {
+	// 빌드 시 해당 task를 실행하도록 설정
+	dependsOn copyDocument
+}
